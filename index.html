@@ -1,0 +1,427 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>Ghazal Mini</title>
+<style>
+  :root{
+    --bg:#0d1210; --panel:#12181a; --panel-2:#182022; --line:#223028;
+    --ink:#eef4f1; --ink-dim:#8a9d95;
+    --in:#4ade80; --out:#fb923c; --fee:#38bdf8;
+    --insta:#a855f7; --voda:#f43f5e;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:Tahoma,'Segoe UI',sans-serif;padding:10px;
+    -webkit-tap-highlight-color:transparent}
+  .wrap{max-width:920px;margin:0 auto}
+  .topbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px}
+  .topbar h1{font-size:19px;margin:0;font-weight:800;letter-spacing:.3px}
+  .savedTxt{font-size:11.5px;color:var(--ink-dim);display:flex;align-items:center;gap:5px}
+  .savedTxt .dot{width:7px;height:7px;border-radius:50%;background:var(--in)}
+
+  .mini-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  @media(max-width:760px){.mini-grid{grid-template-columns:1fr}}
+
+  .wcard{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:12px 14px;border-top:3px solid var(--line)}
+  .wcard.voda{border-top-color:var(--voda)}
+  .wcard.insta{border-top-color:var(--insta)}
+  .wtop{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;gap:12px}
+  .wname{display:flex;align-items:center;gap:8px;font-weight:800;font-size:22px}
+  .wname i{width:11px;height:11px;border-radius:50%;display:inline-block}
+  .wcard.voda .wname i{background:var(--voda)} .wcard.insta .wname i{background:var(--insta)}
+  .wtotal-wrap{display:flex;flex-direction:column;align-items:flex-end;gap:2px}
+  .wtotal-wrap .lbl{font-size:10.5px;color:var(--ink-dim)}
+  .wtotal-display{font-family:'IBM Plex Mono',monospace;font-weight:800;font-size:28px;line-height:1.1;
+    color:var(--ink);cursor:text;padding:6px 10px;border-bottom:1px dashed rgba(255,255,255,.2);white-space:nowrap;
+    outline:none;min-width:120px;text-align:end;direction:ltr}
+  .wtotal-display:focus{border-bottom-color:var(--fee);background:rgba(255,255,255,.03);border-radius:6px}
+  .wtotal-wrap{width:auto;flex:0 1 auto}
+
+  .wsplit{display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap}
+  .stat-block{display:flex;flex-direction:column;align-items:flex-start;gap:4px;flex:1;min-width:110px;max-width:190px}
+  .stat-lbl{font-size:10.5px;color:var(--ink-dim)}
+  .cell{width:100%;background:var(--panel-2);border:1px solid var(--line);border-radius:9px;padding:5px 9px;text-align:end}
+  .cell .val{font-family:'IBM Plex Mono',monospace;font-weight:700;font-size:20px}
+  .cell.mine .val{color:var(--in);display:block;text-align:right;direction:ltr}
+  .cell.muh .val{color:var(--fee)}
+  .cell.muh.neg{border-color:rgba(255,107,107,.4)}
+  .cell.muh.neg .val{color:#ff6b6b;font-size:12px;font-weight:600;line-height:1.4}
+
+  .xferbtn{width:22px;height:22px;padding:0;border-radius:50%;cursor:pointer;flex-shrink:0;
+    background:rgba(56,189,248,.12);border:1px solid rgba(56,189,248,.4);color:var(--fee);
+    font-family:inherit;font-size:12px;line-height:1;display:inline-flex;align-items:center;justify-content:center}
+  .xferbtn:hover{background:rgba(56,189,248,.25)}
+  .cell.muh{display:flex;align-items:center;justify-content:space-between;gap:8px}
+
+  .form{display:flex;gap:6px;flex-wrap:wrap;align-items:flex-end;margin-bottom:8px;padding-bottom:8px;border-bottom:1px solid var(--line)}
+  .field{display:flex;flex-direction:column;gap:4px}
+  .field label{font-size:10.5px;color:var(--ink-dim)}
+  .field input[type=number]{width:105px}
+  .field input[type=text]{width:100%;min-width:70px}
+  .field:has(input.desc-in){flex:1 1 90px}
+  input[type=number],input[type=text]{background:var(--panel-2);border:1px solid var(--line);border-radius:8px;
+    padding:7px 9px;color:var(--ink);font-family:inherit;font-size:12.5px;outline:none}
+  .toggle{display:flex;background:var(--panel-2);border:1px solid var(--line);border-radius:8px;overflow:hidden;flex-shrink:0}
+  .toggle button{padding:8px 12px;background:none;border:none;color:var(--ink-dim);font-family:inherit;font-size:12px;cursor:pointer}
+  .toggle button.on{color:#0b0a12}
+  .wcard.voda .toggle button.on{background:var(--voda)} .wcard.insta .toggle button.on{background:var(--insta)}
+  .addbtn{padding:7px 10px;margin-inline-start:10px;border:none;border-radius:8px;cursor:pointer;font-family:inherit;font-size:11.5px;font-weight:700;
+    flex-shrink:0;color:#0b0a12;background:linear-gradient(135deg,#4ade80,#38bdf8)}
+  .addbtn:active{transform:translateY(1px)}
+
+  .list{display:flex;flex-direction:column;gap:4px;min-height:240px;max-height:calc(100vh - 330px);overflow-y:auto;
+    scrollbar-width:thin;scrollbar-color:var(--line) transparent}
+  .list::-webkit-scrollbar{width:6px}
+  .list::-webkit-scrollbar-track{background:transparent}
+  .list::-webkit-scrollbar-thumb{background:var(--line);border-radius:3px}
+  .list::-webkit-scrollbar-thumb:hover{background:var(--ink-dim)}
+  .row{display:flex;justify-content:space-between;align-items:center;background:var(--panel-2);border:1px solid var(--line);
+    border-radius:8px;padding:5px 9px;font-size:12px;gap:8px}
+  .row .date{color:var(--ink-dim);font-size:10.5px;min-width:78px;font-family:'IBM Plex Mono',monospace}
+  .row .desc{flex:1;color:#c7d2cd}
+  .row .amt{font-family:'IBM Plex Mono',monospace;font-weight:600;min-width:65px;text-align:end}
+  .row .amt.plus{color:var(--in)} .row .amt.minus{color:var(--out)}
+  .row .acts{display:flex;gap:4px}
+  .row button.mini-act{background:none;border:none;color:var(--ink-dim);cursor:pointer;font-size:11.5px;padding:2px 5px}
+  .row button.mini-act:hover{color:var(--ink)}
+  .row button.del:hover{color:#ff6b6b}
+  .empty{color:var(--ink-dim);font-size:12px;text-align:center;padding:20px 0}
+
+  .edit-row{display:flex;gap:6px;align-items:center;flex:1;flex-wrap:wrap}
+  .edit-row input{padding:5px 8px;font-size:12px}
+  .edit-row input.eamt{width:70px}
+  .edit-row input.edesc{flex:1;min-width:90px}
+
+  .footer-acts{display:flex;gap:8px;justify-content:center;margin-top:12px;flex-wrap:wrap}
+  .ghostbtn{padding:8px 16px;border-radius:8px;cursor:pointer;background:var(--panel-2);border:1px solid var(--line);
+    color:var(--ink-dim);font-family:inherit;font-size:12px}
+  .ghostbtn:hover{color:var(--ink);border-color:var(--fee)}
+
+  .overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center;z-index:50;padding:16px}
+  .modal{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:22px;max-width:380px;width:100%}
+  .modal h3{margin:0 0 6px;font-size:16px}
+  .modal p{margin:0 0 14px;font-size:12.5px;color:var(--ink-dim)}
+  .modal input{width:100%;margin-bottom:14px}
+  .modal .acts{display:flex;gap:8px}
+  .modal .acts button{flex:1;padding:10px;border-radius:8px;border:none;cursor:pointer;font-family:inherit;font-size:13px;font-weight:600}
+  .modal .cancel{background:var(--panel-2);color:var(--ink-dim);border:1px solid var(--line)!important}
+  .modal .confirm{background:linear-gradient(135deg,#4ade80,#38bdf8);color:#0b0a12}
+  .modal textarea{width:100%;height:120px;background:var(--panel-2);border:1px solid var(--line);border-radius:8px;
+    color:var(--ink);font-family:'IBM Plex Mono',monospace;font-size:11px;padding:8px;margin-bottom:12px;direction:ltr}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="topbar">
+    <h1>Ghazal Mini</h1>
+    <div class="savedTxt"><span class="dot"></span><span id="savedTxt">محفوظ تلقائياً</span> · <span id="syncBadge">—</span></div>
+  </div>
+  <div class="mini-grid" id="grid"></div>
+  <div class="footer-acts">
+    <button class="ghostbtn" id="exportBtn">تصدير البيانات (نسخ)</button>
+    <button class="ghostbtn" id="importBtn">استيراد بيانات</button>
+  </div>
+</div>
+
+<div class="overlay" id="xferModal">
+  <div class="modal">
+    <h3>سحب رصيد مهند</h3>
+    <p id="xferModalP"></p>
+    <input type="text" id="xferDesc" placeholder="الوصف (مثال: ضريبة)" value="سحب من مهند">
+    <div class="acts">
+      <button class="cancel" id="xferCancel">إلغاء</button>
+      <button class="confirm" id="xferConfirm">أيوه، أضِفه لحسابي</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="importModal">
+  <div class="modal">
+    <h3>استيراد بيانات</h3>
+    <p>الصق النص اللي نسخته من "تصدير البيانات" بالمكان القديم.</p>
+    <textarea id="importText" placeholder='{"totals":...}'></textarea>
+    <div class="acts">
+      <button class="cancel" id="importCancel">إلغاء</button>
+      <button class="confirm" id="importConfirm">استيراد الآن (بيستبدل الحالي)</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  const $=id=>document.getElementById(id);
+  const KEY='hghazal_wallet_mini_v1';
+  const fmt=n=>(Math.round(n*100)/100).toLocaleString('en-US',{minimumFractionDigits:0,maximumFractionDigits:2});
+  const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  const dfmt=ts=>{
+    const d=new Date(ts);
+    let h=d.getHours();
+    h=h%12; if(h===0)h=12;
+    return String(d.getDate()).padStart(2,'0')+'/'+String(d.getMonth()+1).padStart(2,'0')+' '+
+           h+':'+String(d.getMinutes()).padStart(2,'0');
+  };
+
+  // ===== مزامنة سحابية (Supabase) — أوفلاين-أول: الصفحة تشتغل من الذاكرة المحلية فوراً
+  // دايماً، وبالخلفية بتحاول تزامن مع السحابة لو فيه نت. آخر تعديل (بالتاريخ) هو اللي بيربح. =====
+  const SB_URL='https://ziehhwdphavnbmltxnmc.supabase.co';
+  const SB_KEY='sb_publishable_RFIqrEl890V6fHaVItigUw_pYYibXg6';
+  const SB_TABLE='ghazal_mini_state';
+  const SB_ROW='main';
+
+  let state={totals:{'إنستا':0,'فودافون':0}, ptxns:[], updated_at:0};
+  function load(){
+    try{
+      const raw=localStorage.getItem(KEY);
+      if(raw){
+        const d=JSON.parse(raw);
+        if(d&&d.totals)state.totals=d.totals;
+        if(d&&Array.isArray(d.ptxns))state.ptxns=d.ptxns;
+        if(d&&d.updated_at)state.updated_at=d.updated_at;
+      }
+    }catch(e){}
+  }
+  function save(pushRemote){
+    state.updated_at=Date.now();
+    try{localStorage.setItem(KEY,JSON.stringify(state));$('savedTxt').textContent='محفوظ تلقائياً';}
+    catch(e){$('savedTxt').textContent='تعذّر الحفظ!';}
+    if(pushRemote!==false) pushToCloud();
+  }
+
+  function setSyncBadge(txt){ const b=$('syncBadge'); if(b)b.textContent=txt; }
+
+  function pushToCloud(){
+    setSyncBadge('بيتزامن…');
+    const ctrl=new AbortController(); const t=setTimeout(()=>ctrl.abort(),6000);
+    fetch(SB_URL+'/rest/v1/'+SB_TABLE+'?on_conflict=id',{
+      method:'POST', signal:ctrl.signal,
+      headers:{'apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY,'Content-Type':'application/json','Prefer':'resolution=merge-duplicates'},
+      body:JSON.stringify({id:SB_ROW, data:{totals:state.totals, ptxns:state.ptxns}, updated_at:state.updated_at})
+    }).then(r=>{ clearTimeout(t); setSyncBadge(r.ok?'متزامن ✓':'تعذّرت المزامنة'); })
+      .catch(()=>{ clearTimeout(t); setSyncBadge('أوفلاين — هيتزامن لما يوصل نت'); });
+  }
+
+  function pullFromCloud(){
+    setSyncBadge('بيدوّر على نسخة أحدث…');
+    const ctrl=new AbortController(); const t=setTimeout(()=>ctrl.abort(),6000);
+    fetch(SB_URL+'/rest/v1/'+SB_TABLE+'?id=eq.'+SB_ROW+'&select=data,updated_at',{
+      signal:ctrl.signal, headers:{'apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY}
+    }).then(r=>r.json()).then(rows=>{
+      clearTimeout(t);
+      const row=rows&&rows[0];
+      if(row && row.updated_at>state.updated_at){
+        state.totals=row.data.totals||state.totals;
+        state.ptxns=row.data.ptxns||state.ptxns;
+        state.updated_at=row.updated_at;
+        try{localStorage.setItem(KEY,JSON.stringify(state));}catch(e){}
+        render();
+        setSyncBadge('اتحدّثت من جهاز تاني ✓');
+      } else if(row && row.updated_at<state.updated_at){
+        // النسخة المحلية أحدث — ارفعها فوق
+        pushToCloud();
+      } else {
+        setSyncBadge('متزامن ✓');
+      }
+    }).catch(()=>{ clearTimeout(t); setSyncBadge('أوفلاين — شغّال من آخر نسخة محفوظة'); });
+  }
+  function mine(wallet){
+    let n=0;
+    for(const p of state.ptxns){ if(p.wallet!==wallet)continue; n += p.kind==='spend' ? -p.amt : p.amt; }
+    return n;
+  }
+
+  let editingIdx=null;
+
+  function render(){
+    const grid=$('grid');
+    // فودافون على اليمين (أول عنصر بالـ RTL) وإنستا على الشمال
+    const names=[['فودافون','voda'],['إنستا','insta']];
+    grid.innerHTML=names.map(([name,cls])=>{
+      const total=+state.totals[name]||0;
+      const mineRaw=mine(name);
+      const mineV=Math.max(0,mineRaw);
+      const debt=Math.max(0,-mineRaw);
+      const muh=total-mineV;
+      const debtHtml = debt>0
+        ? '<div class="stat-block"><span class="stat-lbl">دين عليك لمهند</span><div class="cell muh neg"><div class="val">'+fmt(debt)+'</div></div></div>'
+        : '';
+      const entries=state.ptxns.map((p,i)=>({p,i})).filter(x=>x.p.wallet===name).sort((a,b)=>b.p.ts-a.p.ts);
+      const rowsHtml=entries.length ? entries.map(({p,i})=>{
+        if(i===editingIdx){
+          return '<div class="row"><div class="edit-row">'+
+            '<input type="number" class="eamt" value="'+p.amt+'">'+
+            '<input type="text" class="edesc" value="'+esc(p.desc||'')+'">'+
+            '<div class="toggle"><button type="button" class="ekind'+(p.kind!=='spend'?' on':'')+'" data-k="topup">+</button>'+
+            '<button type="button" class="ekind'+(p.kind==='spend'?' on':'')+'" data-k="spend">−</button></div>'+
+            '</div><div class="acts">'+
+            '<button class="mini-act" data-esave="'+i+'">حفظ</button>'+
+            '<button class="mini-act" data-ecancel="1">إلغاء</button>'+
+            '</div></div>';
+        }
+        return '<div class="row">'+
+          '<span class="date">'+dfmt(p.ts)+'</span>'+
+          '<span class="desc">'+esc(p.desc||'')+'</span>'+
+          '<span class="amt '+(p.kind==='spend'?'minus':'plus')+'">'+(p.kind==='spend'?'−':'+')+fmt(p.amt)+'</span>'+
+          '<span class="acts"><button class="mini-act" data-edit="'+i+'">تعديل</button>'+
+          '<button class="mini-act del" data-del="'+i+'">حذف</button></span>'+
+        '</div>';
+      }).join('') : '<div class="empty">لسه ما فيه حركات على '+esc(name)+'</div>';
+
+      return '<div class="wcard '+cls+'">'+
+        '<div class="wtop">'+
+          '<div class="wname"><i></i>'+esc(name)+'</div>'+
+          '<div class="wtotal-wrap"><span class="lbl">الرصيد الكلي</span>'+
+          '<div class="wtotal-display" contenteditable="true" inputmode="decimal" data-w="'+esc(name)+'">'+fmt(total)+'</div></div>'+
+        '</div>'+
+        '<div class="wsplit">'+
+          '<div class="stat-block"><span class="stat-lbl">فلوسي</span><div class="cell mine"><div class="val">'+fmt(mineV)+'</div></div></div>'+
+          '<div class="stat-block"><span class="stat-lbl">لمهند</span><div class="cell muh">'+
+            (muh>0 ? '<button class="xferbtn" data-xfer="'+esc(name)+'" title="سحب رصيد مهند ('+fmt(muh)+') لحسابي">⇩</button>' : '')+
+            '<div class="val">'+fmt(muh)+'</div></div></div>'+
+          debtHtml+
+        '</div>'+
+        '<div class="form">'+
+          '<div class="field"><label>مبلغ</label><input type="number" inputmode="decimal" class="amt-in" data-wf="'+esc(name)+'" placeholder="0"></div>'+
+          '<div class="field"><label>وصف (اختياري)</label><input type="text" class="desc-in" data-wd="'+esc(name)+'"></div>'+
+          '<div class="toggle"><button type="button" class="kind on" data-k="topup" data-wk="'+esc(name)+'">إضافة</button>'+
+          '<button type="button" class="kind" data-k="spend" data-wk="'+esc(name)+'">سحب</button></div>'+
+          '<button class="addbtn" data-add="'+esc(name)+'">تسجيل</button>'+
+        '</div>'+
+        '<div class="list">'+rowsHtml+'</div>'+
+      '</div>';
+    }).join('');
+
+    grid.querySelectorAll('.wtotal-display').forEach(el=>{
+      let t=null;
+      const parse=()=>Math.max(0, parseFloat(String(el.textContent).replace(/[^\d.-]/g,''))||0);
+      // حفظ فوري مع كل رقم بتكتبه — ما بيضيع حتى لو سكّرت الكيبورد عالموبايل
+      el.addEventListener('input',()=>{
+        clearTimeout(t);
+        t=setTimeout(()=>{
+          state.totals[el.dataset.w]=parse();
+          state.updated_at=Date.now();
+          try{localStorage.setItem(KEY,JSON.stringify(state));}catch(e){}
+          $('savedTxt').textContent='محفوظ تلقائياً';
+        },400);
+      });
+      el.addEventListener('blur',()=>{ clearTimeout(t); state.totals[el.dataset.w]=parse(); save(); render(); });
+      el.addEventListener('keydown',e=>{ if(e.key==='Enter'){ e.preventDefault(); el.blur(); } });
+    });
+    grid.querySelectorAll('.kind').forEach(b=>{
+      b.addEventListener('click',()=>{
+        const w=b.dataset.wk;
+        grid.querySelectorAll('.kind[data-wk="'+w+'"]').forEach(x=>x.classList.toggle('on',x===b));
+      });
+    });
+    grid.querySelectorAll('[data-add]').forEach(btn=>{
+      btn.addEventListener('click',()=>{
+        const w=btn.dataset.add;
+        const amtInp=grid.querySelector('.amt-in[data-wf="'+w+'"]');
+        const descInp=grid.querySelector('.desc-in[data-wd="'+w+'"]');
+        const kindBtn=grid.querySelector('.kind.on[data-wk="'+w+'"]');
+        const amt=parseFloat(amtInp.value);
+        if(!amt||amt<=0){amtInp.focus();return;}
+        const kind=kindBtn?kindBtn.dataset.k:'topup';
+        state.ptxns.push({wallet:w,kind,amt,desc:descInp.value.trim(),ts:Date.now()});
+        state.totals[w]=Math.max(0,(+state.totals[w]||0)+(kind==='spend'?-amt:amt));
+        save(); render();
+      });
+    });
+    grid.querySelectorAll('[data-del]').forEach(btn=>{
+      btn.addEventListener('click',()=>{
+        const i=+btn.dataset.del;
+        const p=state.ptxns[i]; if(!p)return;
+        if(!p.noTotal){
+          state.totals[p.wallet]=Math.max(0,(+state.totals[p.wallet]||0)-(p.kind==='spend'?-p.amt:p.amt));
+        }
+        state.ptxns.splice(i,1); save(); render();
+      });
+    });
+    grid.querySelectorAll('[data-edit]').forEach(btn=>{
+      btn.addEventListener('click',()=>{ editingIdx=+btn.dataset.edit; render(); });
+    });
+    grid.querySelectorAll('[data-ecancel]').forEach(btn=>{
+      btn.addEventListener('click',()=>{ editingIdx=null; render(); });
+    });
+    grid.querySelectorAll('.ekind').forEach(b=>{
+      b.addEventListener('click',()=>{
+        b.parentElement.querySelectorAll('.ekind').forEach(x=>x.classList.toggle('on',x===b));
+      });
+    });
+    grid.querySelectorAll('[data-esave]').forEach(btn=>{
+      btn.addEventListener('click',()=>{
+        const i=+btn.dataset.esave;
+        const p=state.ptxns[i]; if(!p)return;
+        const row=btn.closest('.row');
+        const newAmt=parseFloat(row.querySelector('.eamt').value);
+        const newDesc=row.querySelector('.edesc').value.trim();
+        const newKindBtn=row.querySelector('.ekind.on');
+        const newKind=newKindBtn?newKindBtn.dataset.k:p.kind;
+        if(!newAmt||newAmt<=0)return;
+        // اعكس أثر القديم على الرصيد الكلي (إلا لو كانت حركة تحويل داخلي)
+        if(!p.noTotal){
+          state.totals[p.wallet]=Math.max(0,(+state.totals[p.wallet]||0)-(p.kind==='spend'?-p.amt:p.amt));
+        }
+        p.amt=newAmt; p.desc=newDesc; p.kind=newKind;
+        if(!p.noTotal){
+          state.totals[p.wallet]=Math.max(0,(+state.totals[p.wallet]||0)+(newKind==='spend'?-newAmt:newAmt));
+        }
+        editingIdx=null; save(); render();
+      });
+    });
+    grid.querySelectorAll('[data-xfer]').forEach(btn=>{
+      btn.addEventListener('click',()=>{
+        const w=btn.dataset.xfer;
+        const mr=mine(w); const total=+state.totals[w]||0; const muh=total-Math.max(0,mr);
+        if(muh<=0)return;
+        pendingXfer={wallet:w,amt:muh};
+        $('xferModalP').textContent='هيتضاف '+fmt(muh)+' من رصيد مهند لفلوسك على '+w+'. الرصيد الكلي مش هيتأثر.';
+        $('xferDesc').value='سحب من مهند';
+        $('xferModal').style.display='flex';
+      });
+    });
+  }
+
+  let pendingXfer=null;
+  $('xferCancel').addEventListener('click',()=>{$('xferModal').style.display='none';pendingXfer=null;});
+  $('xferConfirm').addEventListener('click',()=>{
+    if(!pendingXfer)return;
+    state.ptxns.push({wallet:pendingXfer.wallet,kind:'topup',amt:pendingXfer.amt,
+      desc:$('xferDesc').value.trim()||'سحب من مهند',ts:Date.now(),noTotal:true});
+    $('xferModal').style.display='none'; pendingXfer=null;
+    save(); render();
+  });
+
+  // تصدير/استيراد — عشان نقل البيانات بأمان بين النسخة القديمة والجديدة
+  $('exportBtn').addEventListener('click',()=>{
+    const dump=JSON.stringify(state);
+    const done=()=>{ $('exportBtn').textContent='اتنسخت ✓'; setTimeout(()=>$('exportBtn').textContent='تصدير البيانات (نسخ)',1500); };
+    if(navigator.clipboard&&navigator.clipboard.writeText){
+      navigator.clipboard.writeText(dump).then(done).catch(()=>{
+        const ta=document.createElement('textarea');ta.value=dump;document.body.appendChild(ta);ta.select();
+        try{document.execCommand('copy');done();}catch(_){alert(dump);} ta.remove();
+      });
+    } else {
+      const ta=document.createElement('textarea');ta.value=dump;document.body.appendChild(ta);ta.select();
+      try{document.execCommand('copy');done();}catch(_){alert(dump);} ta.remove();
+    }
+  });
+  $('importBtn').addEventListener('click',()=>{ $('importText').value=''; $('importModal').style.display='flex'; });
+  $('importCancel').addEventListener('click',()=>{ $('importModal').style.display='none'; });
+  $('importConfirm').addEventListener('click',()=>{
+    try{
+      const d=JSON.parse($('importText').value);
+      if(d&&d.totals&&Array.isArray(d.ptxns)){
+        state=d; save(); render();
+        $('importModal').style.display='none';
+      } else { alert('الصيغة مش صح — انسخ نفس النص اللي طلع من زر التصدير.'); }
+    }catch(e){ alert('ما قدرت أقرأ النص — تأكد إنك نسخت النص كامل.'); }
+  });
+
+  load(); render();
+  pullFromCloud();
+  window.addEventListener('online', pullFromCloud);
+})();
+</script>
+</body>
+</html>
