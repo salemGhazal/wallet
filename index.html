@@ -15,6 +15,23 @@
   body{margin:0;background:var(--bg);color:var(--ink);font-family:Tahoma,'Segoe UI',sans-serif;padding:10px;
     -webkit-tap-highlight-color:transparent}
   .wrap{max-width:920px;margin:0 auto}
+
+  /* شاشة القفل */
+  .lock{position:fixed;inset:0;background:var(--bg);z-index:200;
+    display:flex;align-items:center;justify-content:center;padding:20px}
+  .lock.hidden{display:none}
+  .lock-box{background:var(--panel);border:1px solid var(--line);border-top:3px solid var(--fee);
+    border-radius:16px;padding:30px 26px;width:100%;max-width:300px;text-align:center}
+  .lock-icon{font-size:30px;margin-bottom:8px}
+  .lock-box h2{margin:0 0 16px;font-size:16px;font-weight:700}
+  .lock-box input{width:100%;background:var(--panel-2);border:1px solid var(--line);border-radius:9px;
+    padding:12px;color:var(--ink);font-family:'IBM Plex Mono',monospace;font-size:22px;
+    text-align:center;letter-spacing:6px;outline:none;margin-bottom:10px}
+  .lock-box input:focus{border-color:var(--fee)}
+  .lock-err{font-size:12px;color:#ff6b6b;min-height:16px;margin-bottom:10px}
+  .lock-box button{width:100%;padding:11px;border:none;border-radius:9px;cursor:pointer;
+    background:linear-gradient(135deg,#4ade80,#38bdf8);color:#0b0a12;
+    font-family:inherit;font-size:14px;font-weight:700}
   .topbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px}
   .topbar h1{font-size:19px;margin:0;font-weight:800;letter-spacing:.3px}
   .savedTxt{font-size:11.5px;color:var(--ink-dim);display:flex;align-items:center;gap:5px}
@@ -130,6 +147,16 @@
 </style>
 </head>
 <body>
+<div class="lock" id="lockScreen">
+  <div class="lock-box">
+    <div class="lock-icon">🔒</div>
+    <h2>اكتب الرمز</h2>
+    <input type="password" id="lockInput" inputmode="numeric" autocomplete="off" placeholder="••••">
+    <div class="lock-err" id="lockErr"></div>
+    <button id="lockBtn">دخول</button>
+  </div>
+</div>
+
 <div class="wrap">
   <div class="topbar">
     <h1>Ghazal Mini</h1>
@@ -187,6 +214,27 @@
 <script>
 (function(){
   const $=id=>document.getElementById(id);
+
+  // ===== قفل بسيط: يمنع فتح الصفحة بالغلط. غيّر الرقم من هون =====
+  const PIN='1234';
+  const PIN_KEY='hghazal_mini_unlocked';
+  function unlock(){ $('lockScreen').classList.add('hidden'); }
+  function tryPin(){
+    if($('lockInput').value===PIN){
+      try{localStorage.setItem(PIN_KEY,'1');}catch(e){}
+      unlock();
+    } else {
+      $('lockErr').textContent='الرمز غلط';
+      $('lockInput').value=''; $('lockInput').focus();
+    }
+  }
+  let already=false;
+  try{ already=localStorage.getItem(PIN_KEY)==='1'; }catch(e){}
+  if(already){ unlock(); }
+  else { setTimeout(()=>$('lockInput').focus(),100); }
+  $('lockBtn').addEventListener('click',tryPin);
+  $('lockInput').addEventListener('keydown',e=>{ if(e.key==='Enter')tryPin(); });
+
   const KEY='hghazal_wallet_mini_v1';
   const fmt=n=>(Math.round(n*100)/100).toLocaleString('en-US',{minimumFractionDigits:0,maximumFractionDigits:2});
   const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
