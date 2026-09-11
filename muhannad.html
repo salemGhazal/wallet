@@ -165,7 +165,7 @@
   // نسخ الرقم من كل كارت لحاله
   document.querySelectorAll('.copy').forEach(btn=>{
     btn.addEventListener('click',()=>{
-      const txt=$('val'+btn.dataset.copy).textContent.trim();
+      const txt=$('val'+btn.dataset.copy).textContent.trim().replace(/,/g,'');
       if(!txt||txt==='—')return;
       const done=()=>{ btn.textContent='✓'; btn.classList.add('done');
         showToast('تم نسخ الرقم');
