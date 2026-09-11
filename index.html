@@ -20,6 +20,17 @@
   .savedTxt{font-size:11.5px;color:var(--ink-dim);display:flex;align-items:center;gap:5px}
   .savedTxt .dot{width:7px;height:7px;border-radius:50%;background:var(--in)}
 
+  .sums{display:flex;gap:0;align-items:stretch;background:var(--panel);border:1px solid var(--line);
+    border-radius:10px;overflow:hidden}
+  .sums-title{display:flex;align-items:center;padding:5px 13px;font-size:10.5px;color:var(--ink-dim);
+    white-space:nowrap;border-inline-end:1px solid var(--line)}
+  .sum{padding:5px 14px;display:flex;align-items:center;gap:8px}
+  .sum+.sum{border-inline-start:1px solid var(--line)}
+  .sum .k{font-size:11px;color:var(--ink-dim);white-space:nowrap}
+  .sum .v{font-family:'IBM Plex Mono',monospace;font-weight:700;font-size:17px;direction:ltr}
+  .sum.mine .v{color:var(--in)}
+  .sum.muh .v{color:var(--fee)}
+
   .mini-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
   @media(max-width:760px){.mini-grid{grid-template-columns:1fr}}
 
@@ -122,6 +133,11 @@
 <div class="wrap">
   <div class="topbar">
     <h1>Ghazal Mini</h1>
+    <div class="sums">
+      <div class="sums-title">مجموع الفلوس في المحفظتين</div>
+      <div class="sum mine"><span class="k">فلوسي</span><span class="v" id="sumMine">—</span></div>
+      <div class="sum muh"><span class="k">مهند</span><span class="v" id="sumMuh">—</span></div>
+    </div>
     <div class="savedTxt"><span class="dot"></span><span id="savedTxt">محفوظ تلقائياً</span> · <span id="syncBadge">—</span></div>
   </div>
   <div class="mini-grid" id="grid"></div>
@@ -210,19 +226,25 @@
 
   function setSyncBadge(txt){ const b=$('syncBadge'); if(b)b.textContent=txt; }
 
+  let dirty=false;   // في تعديل محلي لسه ما وصل السحابة
+
   function pushToCloud(){
-    setSyncBadge('بيتزامن…');
+    if(!navigator.onLine){ dirty=true; setSyncBadge('أوفلاين'); return; }
+    setSyncBadge('بيحفظ…');
     const ctrl=new AbortController(); const t=setTimeout(()=>ctrl.abort(),6000);
     fetch(SB_URL+'/rest/v1/'+SB_TABLE+'?on_conflict=id',{
       method:'POST', signal:ctrl.signal,
       headers:{'apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY,'Content-Type':'application/json','Prefer':'resolution=merge-duplicates'},
       body:JSON.stringify({id:SB_ROW, data:{totals:state.totals, ptxns:state.ptxns}, updated_at:state.updated_at})
-    }).then(r=>{ clearTimeout(t); setSyncBadge(r.ok?'متزامن ✓':'تعذّرت المزامنة'); })
-      .catch(()=>{ clearTimeout(t); setSyncBadge('أوفلاين — هيتزامن لما يوصل نت'); });
+    }).then(r=>{
+      clearTimeout(t);
+      if(r.ok){ dirty=false; setSyncBadge('متزامن ✓'); }
+      else { dirty=true; setSyncBadge('بيعيد المحاولة'); }
+    }).catch(()=>{ clearTimeout(t); dirty=true; setSyncBadge('أوفلاين'); });
   }
 
   function pullFromCloud(){
-    setSyncBadge('بيدوّر على نسخة أحدث…');
+    setSyncBadge('بيحدّث…');
     const ctrl=new AbortController(); const t=setTimeout(()=>ctrl.abort(),6000);
     fetch(SB_URL+'/rest/v1/'+SB_TABLE+'?id=eq.'+SB_ROW+'&select=data,updated_at',{
       signal:ctrl.signal, headers:{'apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY}
@@ -235,14 +257,14 @@
         state.updated_at=row.updated_at;
         try{localStorage.setItem(KEY,JSON.stringify(state));}catch(e){}
         render();
-        setSyncBadge('اتحدّثت من جهاز تاني ✓');
+        setSyncBadge('متزامن ✓');
       } else if(row && row.updated_at<state.updated_at){
         // النسخة المحلية أحدث — ارفعها فوق
         pushToCloud();
       } else {
         setSyncBadge('متزامن ✓');
       }
-    }).catch(()=>{ clearTimeout(t); setSyncBadge('أوفلاين — شغّال من آخر نسخة محفوظة'); });
+    }).catch(()=>{ clearTimeout(t); setSyncBadge('أوفلاين'); });
   }
   function mine(wallet){
     let n=0;
@@ -309,6 +331,17 @@
         '<div class="list">'+rowsHtml+'</div>'+
       '</div>';
     }).join('');
+
+    // المجاميع فوق — فلوسي بالمحفظتين، ومهند بالمحفظتين
+    let sumMine=0, sumMuh=0;
+    ['إنستا','فودافون'].forEach(w=>{
+      const t=+state.totals[w]||0;
+      const m=Math.max(0, mine(w));
+      sumMine+=m;
+      sumMuh+=Math.max(0, t-m);
+    });
+    if($('sumMine'))$('sumMine').textContent=fmt(sumMine);
+    if($('sumMuh'))$('sumMuh').textContent=fmt(sumMuh);
 
     grid.querySelectorAll('.wtotal-display').forEach(el=>{
       let t=null;
@@ -466,8 +499,18 @@
   });
 
   load(); render();
+  // لما يرجع النت: لو في تعديل محلي مش مرفوع، ارفعه — غير هيك نزّل آخر نسخة
+  function syncNow(){
+    if(!navigator.onLine)return;
+    if(dirty) pushToCloud();
+    else pullFromCloud();
+  }
   pullFromCloud();
-  window.addEventListener('online', pullFromCloud);
+  window.addEventListener('online', syncNow);
+  // كل ما ترجع للصفحة (فتحتها من جديد أو رجعت لها من تطبيق تاني)
+  document.addEventListener('visibilitychange',()=>{ if(!document.hidden) syncNow(); });
+  // شبكة أمان: محاولة كل دقيقة طول ما في تعديل عالق
+  setInterval(()=>{ if(dirty) syncNow(); },60000);
 
   // ===== تشغيل أوفلاين: نحفظ نسخة من الصفحة على الجهاز بعد أول فتحة =====
   if('serviceWorker' in navigator && location.protocol.indexOf('http')===0){
