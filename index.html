@@ -97,6 +97,7 @@
   .ghostbtn{padding:8px 16px;border-radius:8px;cursor:pointer;background:var(--panel-2);border:1px solid var(--line);
     color:var(--ink-dim);font-family:inherit;font-size:12px}
   .ghostbtn:hover{color:var(--ink);border-color:var(--fee)}
+  .ghostbtn.primary{color:var(--fee);border-color:rgba(56,189,248,.4);background:rgba(56,189,248,.08);font-weight:600}
 
   .overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center;z-index:50;padding:16px}
   .modal{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:22px;max-width:380px;width:100%}
@@ -107,6 +108,12 @@
   .modal .acts button{flex:1;padding:10px;border-radius:8px;border:none;cursor:pointer;font-family:inherit;font-size:13px;font-weight:600}
   .modal .cancel{background:var(--panel-2);color:var(--ink-dim);border:1px solid var(--line)!important}
   .modal .confirm{background:linear-gradient(135deg,#4ade80,#38bdf8);color:#0b0a12}
+  .modal .danger{background:#ef4444;color:#fff}
+  .del-box{background:var(--panel-2);border:1px solid var(--line);border-radius:9px;padding:10px 12px;margin-bottom:16px}
+  .del-line{display:flex;justify-content:space-between;gap:12px;font-size:13px;padding:4px 0}
+  .del-line span{color:var(--ink-dim)}
+  .del-line b{font-weight:700}
+  .del-line b.plus{color:var(--green)} .del-line b.minus{color:var(--out)}
   .modal textarea{width:100%;height:120px;background:var(--panel-2);border:1px solid var(--line);border-radius:8px;
     color:var(--ink);font-family:'IBM Plex Mono',monospace;font-size:11px;padding:8px;margin-bottom:12px;direction:ltr}
 </style>
@@ -119,8 +126,21 @@
   </div>
   <div class="mini-grid" id="grid"></div>
   <div class="footer-acts">
+    <button class="ghostbtn primary" id="copyMuhBtn">نسخ رصيد مهند</button>
     <button class="ghostbtn" id="exportBtn">تصدير البيانات (نسخ)</button>
     <button class="ghostbtn" id="importBtn">استيراد بيانات</button>
+  </div>
+</div>
+
+<div class="overlay" id="delModal">
+  <div class="modal">
+    <h3>متأكد إنك بدك تحذف؟</h3>
+    <p>هاي الحركة اللي رح تنحذف:</p>
+    <div id="delModalBody" class="del-box"></div>
+    <div class="acts">
+      <button class="cancel" id="delCancel">لأ، رجّعني</button>
+      <button class="danger" id="delConfirm">أيوه، احذفها</button>
+    </div>
   </div>
 </div>
 
@@ -231,6 +251,7 @@
   }
 
   let editingIdx=null;
+  let pendingDel=null;
 
   function render(){
     const grid=$('grid');
@@ -251,8 +272,6 @@
           return '<div class="row"><div class="edit-row">'+
             '<input type="number" class="eamt" value="'+p.amt+'">'+
             '<input type="text" class="edesc" value="'+esc(p.desc||'')+'">'+
-            '<div class="toggle"><button type="button" class="ekind'+(p.kind!=='spend'?' on':'')+'" data-k="topup">+</button>'+
-            '<button type="button" class="ekind'+(p.kind==='spend'?' on':'')+'" data-k="spend">−</button></div>'+
             '</div><div class="acts">'+
             '<button class="mini-act" data-esave="'+i+'">حفظ</button>'+
             '<button class="mini-act" data-ecancel="1">إلغاء</button>'+
@@ -331,10 +350,14 @@
       btn.addEventListener('click',()=>{
         const i=+btn.dataset.del;
         const p=state.ptxns[i]; if(!p)return;
-        if(!p.noTotal){
-          state.totals[p.wallet]=Math.max(0,(+state.totals[p.wallet]||0)-(p.kind==='spend'?-p.amt:p.amt));
-        }
-        state.ptxns.splice(i,1); save(); render();
+        pendingDel=i;
+        $('delModalBody').innerHTML=
+          '<div class="del-line"><span>المبلغ</span><b class="'+(p.kind==='spend'?'minus':'plus')+'">'+
+            (p.kind==='spend'?'سحب −':'إضافة +')+fmt(p.amt)+'</b></div>'+
+          '<div class="del-line"><span>الوصف</span><b>'+(p.desc?esc(p.desc):'—')+'</b></div>'+
+          '<div class="del-line"><span>المحفظة</span><b>'+esc(p.wallet)+'</b></div>'+
+          '<div class="del-line"><span>التاريخ</span><b>'+dfmt(p.ts)+'</b></div>';
+        $('delModal').style.display='flex';
       });
     });
     grid.querySelectorAll('[data-edit]').forEach(btn=>{
@@ -343,11 +366,6 @@
     grid.querySelectorAll('[data-ecancel]').forEach(btn=>{
       btn.addEventListener('click',()=>{ editingIdx=null; render(); });
     });
-    grid.querySelectorAll('.ekind').forEach(b=>{
-      b.addEventListener('click',()=>{
-        b.parentElement.querySelectorAll('.ekind').forEach(x=>x.classList.toggle('on',x===b));
-      });
-    });
     grid.querySelectorAll('[data-esave]').forEach(btn=>{
       btn.addEventListener('click',()=>{
         const i=+btn.dataset.esave;
@@ -355,16 +373,14 @@
         const row=btn.closest('.row');
         const newAmt=parseFloat(row.querySelector('.eamt').value);
         const newDesc=row.querySelector('.edesc').value.trim();
-        const newKindBtn=row.querySelector('.ekind.on');
-        const newKind=newKindBtn?newKindBtn.dataset.k:p.kind;
         if(!newAmt||newAmt<=0)return;
         // اعكس أثر القديم على الرصيد الكلي (إلا لو كانت حركة تحويل داخلي)
         if(!p.noTotal){
           state.totals[p.wallet]=Math.max(0,(+state.totals[p.wallet]||0)-(p.kind==='spend'?-p.amt:p.amt));
         }
-        p.amt=newAmt; p.desc=newDesc; p.kind=newKind;
+        p.amt=newAmt; p.desc=newDesc;   // النوع (إضافة/سحب) يضل زي ما هو
         if(!p.noTotal){
-          state.totals[p.wallet]=Math.max(0,(+state.totals[p.wallet]||0)+(newKind==='spend'?-newAmt:newAmt));
+          state.totals[p.wallet]=Math.max(0,(+state.totals[p.wallet]||0)+(p.kind==='spend'?-newAmt:newAmt));
         }
         editingIdx=null; save(); render();
       });
@@ -382,6 +398,20 @@
     });
   }
 
+  $('delCancel').addEventListener('click',()=>{$('delModal').style.display='none';pendingDel=null;});
+  $('delConfirm').addEventListener('click',()=>{
+    if(pendingDel===null)return;
+    const p=state.ptxns[pendingDel];
+    if(p){
+      if(!p.noTotal){
+        state.totals[p.wallet]=Math.max(0,(+state.totals[p.wallet]||0)-(p.kind==='spend'?-p.amt:p.amt));
+      }
+      state.ptxns.splice(pendingDel,1);
+    }
+    $('delModal').style.display='none'; pendingDel=null;
+    save(); render();
+  });
+
   let pendingXfer=null;
   $('xferCancel').addEventListener('click',()=>{$('xferModal').style.display='none';pendingXfer=null;});
   $('xferConfirm').addEventListener('click',()=>{
@@ -390,6 +420,23 @@
       desc:$('xferDesc').value.trim()||'سحب من مهند',ts:Date.now(),noTotal:true});
     $('xferModal').style.display='none'; pendingXfer=null;
     save(); render();
+  });
+
+  // نسخ رصيد مهند بالمحفظتين كنص جاهز للصق
+  $('copyMuhBtn').addEventListener('click',()=>{
+    const muhOf=w=>{ const total=+state.totals[w]||0; return total-Math.max(0,mine(w)); };
+    const txt='رصيد مهند إنستا: '+fmt(muhOf('إنستا'))+'\nرصيد مهند فودافون: '+fmt(muhOf('فودافون'));
+    const btn=$('copyMuhBtn');
+    const done=()=>{ btn.textContent='اتنسخ ✓'; setTimeout(()=>btn.textContent='نسخ رصيد مهند',1500); };
+    if(navigator.clipboard&&navigator.clipboard.writeText){
+      navigator.clipboard.writeText(txt).then(done).catch(()=>{
+        const ta=document.createElement('textarea');ta.value=txt;document.body.appendChild(ta);ta.select();
+        try{document.execCommand('copy');done();}catch(_){alert(txt);} ta.remove();
+      });
+    } else {
+      const ta=document.createElement('textarea');ta.value=txt;document.body.appendChild(ta);ta.select();
+      try{document.execCommand('copy');done();}catch(_){alert(txt);} ta.remove();
+    }
   });
 
   // تصدير/استيراد — عشان نقل البيانات بأمان بين النسخة القديمة والجديدة
@@ -421,6 +468,11 @@
   load(); render();
   pullFromCloud();
   window.addEventListener('online', pullFromCloud);
+
+  // ===== تشغيل أوفلاين: نحفظ نسخة من الصفحة على الجهاز بعد أول فتحة =====
+  if('serviceWorker' in navigator && location.protocol.indexOf('http')===0){
+    navigator.serviceWorker.register('./sw.js').catch(()=>{});
+  }
 })();
 </script>
 </body>
