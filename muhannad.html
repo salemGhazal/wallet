@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>رصيدك</title>
+<style>
+  :root{
+    --bg:#0d1210; --panel:#12181a; --line:#223028;
+    --ink:#eef4f1; --ink-dim:#8a9d95;
+    --insta:#a855f7; --voda:#f43f5e; --fee:#38bdf8;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:Tahoma,'Segoe UI',sans-serif;
+    min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px}
+  .wrap{width:100%;max-width:440px}
+
+  .head{text-align:center;margin-bottom:26px}
+  .head h1{font-size:19px;margin:0 0 4px;font-weight:800}
+  .head p{margin:0;font-size:12px;color:var(--ink-dim)}
+
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:16px;
+    padding:22px;margin-bottom:12px;border-top:3px solid var(--line)}
+  .card.voda{border-top-color:var(--voda)}
+  .card.insta{border-top-color:var(--insta)}
+  .name{display:flex;align-items:center;gap:9px;font-size:17px;font-weight:800;margin-bottom:10px}
+  .name i{width:11px;height:11px;border-radius:50%;display:inline-block}
+  .card.voda .name i{background:var(--voda)} .card.insta .name i{background:var(--insta)}
+  .val{font-family:'IBM Plex Mono',monospace;font-weight:800;font-size:42px;line-height:1.1;
+    color:var(--fee);direction:ltr;text-align:right}
+
+  .foot{text-align:center;margin-top:20px;font-size:12px;color:var(--ink-dim)}
+  .refresh{margin-top:12px;padding:9px 22px;border-radius:9px;cursor:pointer;
+    background:var(--panel);border:1px solid var(--line);color:var(--ink-dim);
+    font-family:inherit;font-size:13px}
+  .refresh:active{transform:translateY(1px)}
+  .loading .val{color:var(--ink-dim);font-size:24px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="head">
+    <h1>رصيدك عند سالم</h1>
+    <p id="stamp">بيحمّل…</p>
+  </div>
+
+  <div class="card voda loading" id="cardVoda">
+    <div class="name"><i></i>فودافون</div>
+    <div class="val" id="valVoda">—</div>
+  </div>
+
+  <div class="card insta loading" id="cardInsta">
+    <div class="name"><i></i>إنستا</div>
+    <div class="val" id="valInsta">—</div>
+  </div>
+
+  <div class="foot">
+    <button class="refresh" id="refreshBtn">تحديث</button>
+  </div>
+</div>
+
+<script>
+(function(){
+  const $=id=>document.getElementById(id);
+  const fmt=n=>(Math.round(n*100)/100).toLocaleString('en-US',{minimumFractionDigits:0,maximumFractionDigits:2});
+
+  const SB_URL='https://ziehhwdphavnbmltxnmc.supabase.co';
+  const SB_KEY='sb_publishable_RFIqrEl890V6fHaVItigUw_pYYibXg6';
+  const SB_TABLE='ghazal_mini_state';
+  const SB_ROW='main';
+
+  function mineOf(ptxns, wallet){
+    let n=0;
+    for(const p of (ptxns||[])){ if(p.wallet!==wallet)continue; n += p.kind==='spend' ? -p.amt : p.amt; }
+    return n;
+  }
+
+  function show(data, updatedAt){
+    ['فودافون','إنستا'].forEach(w=>{
+      const total=+(data.totals&&data.totals[w])||0;
+      const muh=total-Math.max(0, mineOf(data.ptxns, w));
+      const id = w==='فودافون' ? 'Voda' : 'Insta';
+      $('val'+id).textContent=fmt(Math.max(0,muh));
+      $('card'+id).classList.remove('loading');
+    });
+    if(updatedAt){
+      const d=new Date(updatedAt);
+      let h=d.getHours(); h=h%12; if(h===0)h=12;
+      $('stamp').textContent='آخر تحديث: '+String(d.getDate()).padStart(2,'0')+'/'+
+        String(d.getMonth()+1).padStart(2,'0')+' · '+h+':'+String(d.getMinutes()).padStart(2,'0');
+    }
+  }
+
+  function load(){
+    $('stamp').textContent='بيحمّل…';
+    const ctrl=new AbortController(); const t=setTimeout(()=>ctrl.abort(),8000);
+    fetch(SB_URL+'/rest/v1/'+SB_TABLE+'?id=eq.'+SB_ROW+'&select=data,updated_at',{
+      signal:ctrl.signal, cache:'no-store',
+      headers:{'apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY}
+    }).then(r=>r.json()).then(rows=>{
+      clearTimeout(t);
+      const row=rows&&rows[0];
+      if(row&&row.data){
+        show(row.data, row.updated_at);
+        try{localStorage.setItem('muh_view_cache',JSON.stringify(row));}catch(e){}
+      } else {
+        $('stamp').textContent='ما في بيانات لسه';
+      }
+    }).catch(()=>{
+      clearTimeout(t);
+      // بلا نت: نعرض آخر نسخة محفوظة
+      try{
+        const c=JSON.parse(localStorage.getItem('muh_view_cache'));
+        if(c&&c.data){ show(c.data, c.updated_at); $('stamp').textContent+=' (بدون نت)'; return; }
+      }catch(e){}
+      $('stamp').textContent='ما قدرت أحمّل — تأكد من النت';
+    });
+  }
+
+  $('refreshBtn').addEventListener('click',load);
+  load();
+})();
+</script>
+</body>
+</html>
